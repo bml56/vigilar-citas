@@ -118,7 +118,10 @@ def avisar(texto):
         except Exception as e:
             log(f"No se pudo enviar el Telegram: {e}")
 
-    webbrowser.open(PAGINA)
+    try:
+        webbrowser.open(PAGINA)
+    except Exception:
+        pass
 
 
 def main():
@@ -129,6 +132,8 @@ def main():
                     help="departamento a vigilar (153 = nº1, 17 = nº2). Por defecto, ambos")
     ap.add_argument("--seguir", action="store_true",
                     help="seguir vigilando después de avisar (por defecto se detiene)")
+    ap.add_argument("--una-vez", action="store_true",
+                    help="consulta una sola vez y termina (para GitHub Actions)")
     ap.add_argument("--probar-telegram", action="store_true",
                     help="envía un mensaje de prueba por Telegram y termina")
     args = ap.parse_args()
@@ -150,6 +155,31 @@ def main():
 
     deptos = args.depto or list(DEPARTAMENTOS)
     intervalo = max(30, args.intervalo)
+
+    if args.una_vez:
+        # Modo para GitHub Actions u otro programador: una consulta y termina.
+        try:
+            abrir_sesion()
+            encontrados = []
+            for d in deptos:
+                for fecha, date_id, n in dias_disponibles(d):
+                    try:
+                        hs = horas(d, date_id)
+                    except Exception:
+                        hs = []
+                    encontrados.append((d, fecha, n, hs))
+        except Exception as e:
+            log(f"ERROR al conectar con la web del hospital: {e}")
+            sys.exit(1)
+        if encontrados:
+            lineas = [f"{DEPARTAMENTOS[d]}: {f} — {n} hueco(s) {'; '.join(hs)}"
+                      for d, f, n, hs in encontrados]
+            for l in lineas:
+                log("LIBRE → " + l)
+            avisar("\n".join(lineas))
+        else:
+            log("Conexión correcta. Sin huecos.")
+        return
 
     log(f"Vigilando {', '.join(deptos)} cada {intervalo}s. Ctrl+C para parar.")
     ultimo_aviso = set()

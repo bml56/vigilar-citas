@@ -1,0 +1,21 @@
+name: Vigilar citas MNTK
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # cada 5 minutos (GitHub puede retrasarlo algo)
+  workflow_dispatch:          # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Consultar disponibilidad
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+        run: python vigilar_citas_mntk.py --una-vez
